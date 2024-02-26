@@ -1,0 +1,55 @@
+name: Kernel Compilation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "Soham Sen"
+          git config --global user.email "sensoham135@gmail.com"
+
+      - name: Clone Linux repository
+        run: |
+          git clone --depth 1 --branch linux-5.15.y https://github.com/gregkh/linux
+          cd linux
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git build-essential kernel-wedge fakeroot flex bison binutils-dev libssl-dev libelf-dev libslang2-dev libpci-dev libiberty-dev libcap-dev libudev-dev libdw-dev libunwind-dev libncurses-dev libzstd-dev libnuma-dev libbabeltrace-dev libpfm4-dev lz4 zstd wireless-tools default-jre default-jdk linux-cloud-tools-common linux-tools-$(uname -r)
+          wget https://github.com/akhilnarang/scripts/raw/master/setup/android_build_env.sh
+          sudo bash android_build_env.sh
+
+      - name: Configure kernel
+        run: |
+          make defconfig
+
+      - name: Compile kernel
+        run: |
+          make -j$(nproc)
+
+      - name: Create DEB packages
+        run: |
+          make deb-pkg
+
+      - name: Upload DEB packages to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.repository.releases_url }}
+          asset_path: |
+            linux-image-*.deb
+            linux-headers-*.deb
+          asset_name: |
+            linux-image
+            linux-headers
+          asset_content_type: application/x-debian-package
